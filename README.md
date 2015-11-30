@@ -81,3 +81,166 @@ $img.bind('load', function(){
 
 // 画像読み込み開始
 $img.src = $img.originSrc;
+```
+
+
+### ImageManagerクラスを作る
+
+この辺りの処理をまとめて使いまわせるようにします。
+さらにもう少し使いやすくするために、複数の画像の読み込みも監視します。
+コードを全部載せると長くなるので、サンプルコード一式は下記のGithubでご確認ください。
+[ImageManager.js](https://github.com/SuguruSasaki/image-manager-js)
+
+
+実際に使うときはこれだけす。
+<b>ImagerManager.watchを実行と、コールバック関数を準備する</b>、これだけす。
+基本的にwatchメッソドしか使いません。これだけです。
+
+```main.js
+var _this = this;
+
+module.ImageManager.watch($('img'), _this, onload, "引数を渡せます。");
+
+function onload(data){
+   console.log("load all complete");
+   console.log(data);
+}
+
+```
+
+複数の画像をまとめて管理する場合は、下記のようにかけます。
+これで「.container」クラス内の画像を全て読み込みます。
+
+```main_multi.js
+var _this = this;
+
+$('.container').each(function(key, value){
+   var tmp = $(value).find('img');
+   if(tmp[0]){
+      module.ImageManager.watch(tmp, _this, onload, "引数");
+   }
+});
+
+module.ImageManager.watch($('img'), _this, onload, "引数を渡せます。");
+
+function onload(data){
+   console.log("load all complete");
+   console.log(data);
+}
+
+```
+
+
+ImageManger.jsはObserverパターンとCommandパターンを合わせたような作りになっています。
+
+ImageManager自体は静的クラスでしかなく、内部にImageStructクラス、CallBackクラス(Commandパターン)をインスタンス化して管理しています。
+
+
+```javascript
+/**
+ * 画像読み込みを監視する。
+ *
+ * @param target
+ * @param completeFunc
+ * @param scope
+ * @param origin
+ */
+module.ImageManager.watch = function(target, completeFunc, scope, origin){
+    var offset = new Date().getMilliseconds();
+    if(module.ImageManager.listeners[target[0].src + offset]) return;
+    var struct = new ImageStruct(target, completeFunc, scope, origin);
+    module.ImageManager.listeners[target[0].src] = struct;
+    struct.loadImage();
+    return struct;
+};
+
+/**
+ * 画像読み込み構造体
+ *
+ * @param target
+ * @param scope
+ * @param compFunc
+ * @param args
+ * @constructor
+ */
+var ImageStruct = function(target, scope, compFunc, args){
+    this.target = target;
+    this.scope = scope;
+    this.callBacks = [];
+    this.addCallBack(scope, compFunc, args);
+    this.counter = 0;
+    this.counterMax = this.target.length;
+};
+
+/**
+ * 画像読み込み
+ */
+ImageStruct.prototype['loadImage'] = function(){
+    var _this = this;
+    this.target.each(function(key, image){
+        image.orginSrc = image.src;
+        image.src = "";
+
+        $(image).bind("load", function(){
+            _this.counter++;
+            if(_this.counter == _this.counterMax){
+                //console.log("complete = ", _this.counter);
+                _this.execute();
+            }
+        });
+
+        image.src = image.orginSrc;
+    });
+};
+
+/**
+ * コールバック処理の登録
+ * @param scope
+ * @param func
+ * @param args
+ */
+ImageStruct.prototype['addCallBack'] = function(scope, func, args){
+    var callBack = new CallBack(scope, func, args);
+    this.callBacks.push(callBack);
+};
+
+/**
+ * コールバックを実行
+ */
+ImageStruct.prototype['execute'] = function(){
+    for(var i = 0; i < this.callBacks.length; ++i){
+        var callBack = this.callBacks[i];
+        callBack.execute();
+    }
+};
+
+/**
+ * コールバックオブジェクト
+ * @param scope
+ * @param func
+ * @param args
+ * @constructor
+ */
+var CallBack = function(scope, func, args) {
+    this.scope = scope;
+    this.func = func;
+    this.args = args;
+}
+
+/**
+ * コールバック処理を実行
+ */
+CallBack.prototype['execute'] = function(){
+    this.func.apply(this.scope, [this.args]);
+}
+```
+
+
+
+
+
+
+
+
+
+
