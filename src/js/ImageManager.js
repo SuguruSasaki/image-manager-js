@@ -25,10 +25,10 @@ $(function(exports) {
      * @param scope
      * @param origin
      */
-    module.ImageManager.watch = function(target, completeFunc, scope, origin){
+    module.ImageManager.watch = function(target, scope, completeFunc, origin){
         var offset = new Date().getMilliseconds();
         if(module.ImageManager.listeners[target[0].src + offset]) return;
-        var struct = new ImageStruct(target, completeFunc, scope, origin);
+        var struct = new ImageStruct(target, scope, completeFunc, origin);
         module.ImageManager.listeners[target[0].src] = struct;
         struct.loadImage();
         return struct;
